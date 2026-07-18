@@ -1,5 +1,5 @@
 //@version=6
-indicator("BTC Sniper [Pro Elite Institutional V40 - Ultra Sensitive]", overlay=true, max_lines_count=500)
+indicator("BTC Sniper [Pro Elite Institutional V41 - Clean & Optimized]", overlay=true, max_lines_count=500)
 
 // ============================================================================
 // SECTION 1: INPUTS - OPTIMIZED FOR BTC/USDT
@@ -37,8 +37,8 @@ float positionTP1Mult = input.float(4.0, "POSITION: TP1 Multiplier", minval=2.0,
 float positionTP2Mult = input.float(6.0, "POSITION: TP2 Multiplier", minval=3.0, maxval=8.0, step=0.1, group="Position Profile (Long)")
 float positionTP3Mult = input.float(8.5, "POSITION: TP3 Multiplier", minval=4.0, maxval=10.0, step=0.1, group="Position Profile (Long)")
 
-bool showColorGradedZones = input.bool(true, "Show Color-Graded Risk/Reward Zones", group="Visualization")
-bool showWinProbability = input.bool(true, "Show Win Probability %", group="Visualization")
+bool showColorGradedZones = input.bool(true, "Show Risk/Reward Zones (STRONG signals only)", group="Visualization")
+bool showWinProbability = input.bool(true, "Show Win Probability % (STRONG signals only)", group="Visualization")
 float minRRFilter = input.float(1.5, "Minimum R:R Ratio Filter", minval=0.5, maxval=5.0, step=0.1, group="Visualization")
 
 // NEW: Enhanced Signal Strength
@@ -143,9 +143,9 @@ float positionTP2 = atrValue * positionTP2Mult
 float positionTP3 = atrValue * positionTP3Mult
 
 // ============================================================================
-// SECTION 4: HEATMAP ZONES
+// SECTION 4: HEATMAP ZONES - ONLY ON STRONG VOLUME SURGES
 // ============================================================================
-if (isVolumeSurge and validSignal)
+if (isVolumeSurge and validSignal and (buySignal or sellSignal))
     color boxColor = sellSignal ? color.new(color.red, 75) : color.new(color.green, 75)
     color borderColor = sellSignal ? color.red : color.green
     
@@ -154,15 +154,15 @@ if (isVolumeSurge and validSignal)
     label.new(bar_index + 5, (high[1] + low[1]) / 2, text=str.tostring(volume / avgVol, "#.#") + "x", color=color.new(color.white, 0), textcolor=color.black, size=size.small, style=label.style_label_center)
 
 // ============================================================================
-// SECTION 4B: INSTITUTIONAL ZONES - NEW FEATURE
+// SECTION 4B: INSTITUTIONAL ZONES - MINIMAL, ONLY WHEN CLEAR
 // ============================================================================
-if showInstitutionalZones and isInstitutionalZone and validSignal and not (buySignal or sellSignal or buySignalWeak or sellSignalWeak)
+if showInstitutionalZones and isInstitutionalZone and validSignal and not (buySignal or sellSignal or buySignalWeak or sellSignalWeak) and volumeMultiplier > 1.2
     color zoneColor = close > open ? color.new(color.lime, 85) : color.new(color.red, 85)
     box.new(left=bar_index[1], top=high[1], right=bar_index + 8, bottom=low[1], bgcolor=zoneColor, border_color=color.new(color.gray, 20), border_width=1)
     label.new(bar_index + 4, (high[1] + low[1]) / 2, text="💼", color=color.new(color.white, 0), textcolor=color.black, size=size.tiny, style=label.style_label_center)
 
 // ============================================================================
-// SECTION 5: BUY/SELL ARROWS - ENHANCED WITH FLASHING EFFECT & ALERTS
+// SECTION 5: BUY/SELL ARROWS - CLEAN & VISIBLE
 // ============================================================================
 int flashCounter = bar_index % 2
 
@@ -184,49 +184,54 @@ if (buySignal or sellSignal) and validSignal and enableAlerts
     alert(signal_type + " detected at " + str.tostring(close, "#.##") + " | VOL: " + str.tostring(volumeMultiplier, "#.#") + "x | WIN%: " + str.tostring(winProbability, "#.#") + "%", alert.freq_once_per_bar_close)
 
 // ============================================================================
-// SECTION 5B: RISK/REWARD ZONES - MORE VISIBLE
+// SECTION 5B: RISK/REWARD ZONES - OPTIMIZED (STRONG SIGNALS ONLY, BEST RR ONLY)
 // ============================================================================
-if showColorGradedZones and ((buySignal or sellSignal or buySignalWeak or sellSignalWeak) and validSignal)
+if showColorGradedZones and (buySignal or sellSignal) and validSignal
     float entryPrice = close
     
-    // SCALP Profile Zones
-    float scalpSLPrice = (sellSignal or sellSignalWeak) ? (high + scalpSL) : (low - scalpSL)
-    float scalpTP2Price = (sellSignal or sellSignalWeak) ? (close - scalpTP2) : (close + scalpTP2)
+    // Calculate all R:R ratios to find BEST one
+    float scalpSLPrice = (sellSignal) ? (high + scalpSL) : (low - scalpSL)
+    float scalpTP2Price = (sellSignal) ? (close - scalpTP2) : (close + scalpTP2)
     float scalpRiskPips = math.abs(entryPrice - scalpSLPrice)
     float scalpRewardPips = math.abs(scalpTP2Price - entryPrice)
     float scalpRR = scalpRiskPips > 0 ? scalpRewardPips / scalpRiskPips : 0.0
     
-    if scalpRR >= minRRFilter
-        box.new(left=bar_index, top=(sellSignal or sellSignalWeak) ? entryPrice : scalpSLPrice, right=bar_index + 12, bottom=(sellSignal or sellSignalWeak) ? scalpSLPrice : entryPrice, bgcolor=color.new(color.red, 75), border_color=color.new(color.red, 0), border_width=1)
-        box.new(left=bar_index, top=(sellSignal or sellSignalWeak) ? scalpTP2Price : entryPrice, right=bar_index + 12, bottom=(sellSignal or sellSignalWeak) ? entryPrice : scalpTP2Price, bgcolor=color.new(color.green, 75), border_color=color.new(color.green, 0), border_width=1)
-    
-    // SWING Profile Zones
-    float swingSLPrice = (sellSignal or sellSignalWeak) ? (high + swingSL) : (low - swingSL)
-    float swingTP2Price = (sellSignal or sellSignalWeak) ? (close - swingTP2) : (close + swingTP2)
+    float swingSLPrice = (sellSignal) ? (high + swingSL) : (low - swingSL)
+    float swingTP2Price = (sellSignal) ? (close - swingTP2) : (close + swingTP2)
     float swingRiskPips = math.abs(entryPrice - swingSLPrice)
     float swingRewardPips = math.abs(swingTP2Price - entryPrice)
     float swingRR = swingRiskPips > 0 ? swingRewardPips / swingRiskPips : 0.0
     
-    if swingRR >= minRRFilter
-        box.new(left=bar_index, top=(sellSignal or sellSignalWeak) ? entryPrice : swingSLPrice, right=bar_index + 18, bottom=(sellSignal or sellSignalWeak) ? swingSLPrice : entryPrice, bgcolor=color.new(color.red, 70), border_color=color.new(color.red, 0), border_width=1)
-        box.new(left=bar_index, top=(sellSignal or sellSignalWeak) ? swingTP2Price : entryPrice, right=bar_index + 18, bottom=(sellSignal or sellSignalWeak) ? entryPrice : swingTP2Price, bgcolor=color.new(color.green, 70), border_color=color.new(color.green, 0), border_width=1)
-    
-    // POSITION Profile Zones
-    float positionSLPrice = (sellSignal or sellSignalWeak) ? (high + positionSL) : (low - positionSL)
-    float positionTP2Price = (sellSignal or sellSignalWeak) ? (close - positionTP2) : (close + positionTP2)
+    float positionSLPrice = (sellSignal) ? (high + positionSL) : (low - positionSL)
+    float positionTP2Price = (sellSignal) ? (close - positionTP2) : (close + positionTP2)
     float positionRiskPips = math.abs(entryPrice - positionSLPrice)
     float positionRewardPips = math.abs(positionTP2Price - entryPrice)
     float positionRR = positionRiskPips > 0 ? positionRewardPips / positionRiskPips : 0.0
     
-    if positionRR >= minRRFilter
-        box.new(left=bar_index, top=(sellSignal or sellSignalWeak) ? entryPrice : positionSLPrice, right=bar_index + 25, bottom=(sellSignal or sellSignalWeak) ? positionSLPrice : entryPrice, bgcolor=color.new(color.red, 65), border_color=color.new(color.red, 0), border_width=1)
-        box.new(left=bar_index, top=(sellSignal or sellSignalWeak) ? positionTP2Price : entryPrice, right=bar_index + 25, bottom=(sellSignal or sellSignalWeak) ? entryPrice : positionTP2Price, bgcolor=color.new(color.green, 65), border_color=color.new(color.green, 0), border_width=1)
+    // ONLY SHOW THE BEST R:R RATIO (highest one that meets minimum)
+    float bestRR = math.max(scalpRR, math.max(swingRR, positionRR))
+    string bestProfile = "NONE"
     
-    // Entry zone (Yellow anchor line)
-    box.new(left=bar_index - 1, top=entryPrice + 50, right=bar_index + 25, bottom=entryPrice - 50, bgcolor=color.new(color.yellow, 60), border_color=color.new(color.orange, 20), border_width=2)
-    
-    if showWinProbability
-        label.new(bar_index + 12, entryPrice + ((sellSignal or sellSignalWeak) ? -100 : 100), text="📊 Win: " + str.tostring(winProbability, "#.#") + "%", color=color.new(color.white, 0), textcolor=color.black, size=size.small)
+    if bestRR >= minRRFilter
+        if bestRR == positionRR and positionRR >= minRRFilter
+            box.new(left=bar_index, top=(sellSignal) ? entryPrice : positionSLPrice, right=bar_index + 25, bottom=(sellSignal) ? positionSLPrice : entryPrice, bgcolor=color.new(color.red, 65), border_color=color.new(color.red, 0), border_width=1)
+            box.new(left=bar_index, top=(sellSignal) ? positionTP2Price : entryPrice, right=bar_index + 25, bottom=(sellSignal) ? entryPrice : positionTP2Price, bgcolor=color.new(color.green, 65), border_color=color.new(color.green, 0), border_width=1)
+            bestProfile := "POSITION"
+        else if bestRR == swingRR and swingRR >= minRRFilter
+            box.new(left=bar_index, top=(sellSignal) ? entryPrice : swingSLPrice, right=bar_index + 18, bottom=(sellSignal) ? swingSLPrice : entryPrice, bgcolor=color.new(color.red, 70), border_color=color.new(color.red, 0), border_width=1)
+            box.new(left=bar_index, top=(sellSignal) ? swingTP2Price : entryPrice, right=bar_index + 18, bottom=(sellSignal) ? entryPrice : swingTP2Price, bgcolor=color.new(color.green, 70), border_color=color.new(color.green, 0), border_width=1)
+            bestProfile := "SWING"
+        else if bestRR == scalpRR and scalpRR >= minRRFilter
+            box.new(left=bar_index, top=(sellSignal) ? entryPrice : scalpSLPrice, right=bar_index + 12, bottom=(sellSignal) ? scalpSLPrice : entryPrice, bgcolor=color.new(color.red, 75), border_color=color.new(color.red, 0), border_width=1)
+            box.new(left=bar_index, top=(sellSignal) ? scalpTP2Price : entryPrice, right=bar_index + 12, bottom=(sellSignal) ? entryPrice : scalpTP2Price, bgcolor=color.new(color.green, 75), border_color=color.new(color.green, 0), border_width=1)
+            bestProfile := "SCALP"
+        
+        // Entry zone (Yellow anchor line) - ONLY IF WE SHOW RR BOXES
+        box.new(left=bar_index - 1, top=entryPrice + 50, right=bar_index + 25, bottom=entryPrice - 50, bgcolor=color.new(color.yellow, 60), border_color=color.new(color.orange, 20), border_width=2)
+        
+        // Win probability ONLY for best profile
+        if showWinProbability
+            label.new(bar_index + 12, entryPrice + ((sellSignal) ? -100 : 100), text="📊 " + bestProfile + " | Win: " + str.tostring(winProbability, "#.#") + "%", color=color.new(color.white, 0), textcolor=color.black, size=size.small)
 
 // ============================================================================
 // SECTION 6: VOLUME LINES - COMPLETE REWRITE
@@ -261,7 +266,7 @@ if array.size(volumeLines) > 0
             array.remove(volumeLines, i)
             array.remove(volumeLineTouches, i)
 
-// Create NEW volume lines - SIMPLIFIED LOGIC
+// Create NEW volume lines - ONLY FOR STRONG SIGNALS
 if showVolumeLines and isVolumeSurge and validSignal and (buySignal or sellSignal)
     float newLineLevel = (high + low) / 2
     color newLineColor = buySignal ? color.new(color.lime, 30) : color.new(color.red, 30)
@@ -370,5 +375,5 @@ if barstate.islast
 // ============================================================================
 // FOOTER
 // ============================================================================
-int system_version = 40
-string system_status = "BTC/USDT V40 - Ultra Sensitive: Weak Signals, Institutional Zones, Alerts Enabled"
+int system_version = 41
+string system_status = "BTC/USDT V41 - Clean & Optimized: Only Best R:R shown, Win% on STRONG signals only"
