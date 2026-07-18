@@ -101,7 +101,8 @@ if (isVolumeSurge and validSignal)
     
     box.new(left=bar_index[1], top=high[1], right=bar_index + 10, bottom=low[1], bgcolor=boxColor, border_color=borderColor, border_width=2)
     
-    label.new(bar_index + 5, (high[1] + low[1]) / 2, text=str.tostring(volume / avgVol, "#.#") + "x", color=color.new(color.white, 100), textcolor=color.white, size=size.small)
+    // Make label background opaque white and black text for readability
+    label.new(bar_index + 5, (high[1] + low[1]) / 2, text=str.tostring(volume / avgVol, "#.#") + "x", color=color.new(color.white, 0), textcolor=color.black, size=size.small, style=label.style_label_center)
 
 // ============================================================================
 // SECTION 5: BUY/SELL ARROWS
@@ -124,8 +125,8 @@ if showColorGradedZones and (buySignal or sellSignal) and validSignal
     float scalpRR = scalpRiskPips > 0 ? scalpRewardPips / scalpRiskPips : 0.0
     
     if scalpRR >= minRRFilter
-        box.new(left=bar_index, top=sellSignal ? entryPrice : scalpSLPrice, right=bar_index + 12, bottom=sellSignal ? scalpSLPrice : entryPrice, bgcolor=color.new(color.red, 75), border_color=color.new(color.red, 20), border_width=2)
-        box.new(left=bar_index, top=sellSignal ? scalpTP2Price : entryPrice, right=bar_index + 12, bottom=sellSignal ? entryPrice : scalpTP2Price, bgcolor=color.new(color.green, 75), border_color=color.new(color.green, 20), border_width=2)
+        box.new(left=bar_index, top=sellSignal ? entryPrice : scalpSLPrice, right=bar_index + 12, bottom=sellSignal ? scalpSLPrice : entryPrice, bgcolor=color.new(color.red, 75), border_color=color.new(color.red, 20))
+        box.new(left=bar_index, top=sellSignal ? scalpTP2Price : entryPrice, right=bar_index + 12, bottom=sellSignal ? entryPrice : scalpTP2Price, bgcolor=color.new(color.green, 75), border_color=color.new(color.green, 20))
     
     // SWING Profile Zones
     float swingSLPrice = sellSignal ? (high + swingSL) : (low - swingSL)
@@ -135,8 +136,8 @@ if showColorGradedZones and (buySignal or sellSignal) and validSignal
     float swingRR = swingRiskPips > 0 ? swingRewardPips / swingRiskPips : 0.0
     
     if swingRR >= minRRFilter
-        box.new(left=bar_index, top=sellSignal ? entryPrice : swingSLPrice, right=bar_index + 18, bottom=sellSignal ? swingSLPrice : entryPrice, bgcolor=color.new(color.red, 70), border_color=color.new(color.red, 30), border_width=2)
-        box.new(left=bar_index, top=sellSignal ? swingTP2Price : entryPrice, right=bar_index + 18, bottom=sellSignal ? entryPrice : swingTP2Price, bgcolor=color.new(color.green, 70), border_color=color.new(color.green, 30), border_width=2)
+        box.new(left=bar_index, top=sellSignal ? entryPrice : swingSLPrice, right=bar_index + 18, bottom=sellSignal ? swingSLPrice : entryPrice, bgcolor=color.new(color.red, 70), border_color=color.new(color.red, 20))
+        box.new(left=bar_index, top=sellSignal ? swingTP2Price : entryPrice, right=bar_index + 18, bottom=sellSignal ? entryPrice : swingTP2Price, bgcolor=color.new(color.green, 70), border_color=color.new(color.green, 20))
     
     // POSITION Profile Zones
     float positionSLPrice = sellSignal ? (high + positionSL) : (low - positionSL)
@@ -146,14 +147,15 @@ if showColorGradedZones and (buySignal or sellSignal) and validSignal
     float positionRR = positionRiskPips > 0 ? positionRewardPips / positionRiskPips : 0.0
     
     if positionRR >= minRRFilter
-        box.new(left=bar_index, top=sellSignal ? entryPrice : positionSLPrice, right=bar_index + 25, bottom=sellSignal ? positionSLPrice : entryPrice, bgcolor=color.new(color.red, 65), border_color=color.new(color.red, 40), border_width=3)
-        box.new(left=bar_index, top=sellSignal ? positionTP2Price : entryPrice, right=bar_index + 25, bottom=sellSignal ? entryPrice : positionTP2Price, bgcolor=color.new(color.green, 65), border_color=color.new(color.green, 40), border_width=3)
+        box.new(left=bar_index, top=sellSignal ? entryPrice : positionSLPrice, right=bar_index + 25, bottom=sellSignal ? positionSLPrice : entryPrice, bgcolor=color.new(color.red, 65), border_color=color.new(color.red, 15))
+        box.new(left=bar_index, top=sellSignal ? positionTP2Price : entryPrice, right=bar_index + 25, bottom=sellSignal ? entryPrice : positionTP2Price, bgcolor=color.new(color.green, 65), border_color=color.new(color.green, 15))
     
     // Entry zone (Yellow anchor line)
     box.new(left=bar_index - 1, top=entryPrice + 0.10, right=bar_index + 25, bottom=entryPrice - 0.10, bgcolor=color.new(color.yellow, 60), border_color=color.new(color.orange, 20), border_width=2)
     
     if showWinProbability
-        label.new(bar_index + 12, entryPrice + (sellSignal ? -0.5 : 0.5), text="📊 Win: " + str.tostring(winProbability, "#.#") + "%", color=color.new(color.white, 0), textcolor=color.white, size=size.small, style=label.style_label_center)
+        // Use opaque white background for win-prob label and dark text for readability
+        label.new(bar_index + 12, entryPrice + (sellSignal ? -0.5 : 0.5), text="📊 Win: " + str.tostring(winProbability, "#.#") + "%", color=color.new(color.white, 0), textcolor=color.black, size=size.small, style=label.style_label_left)
 
 // ============================================================================
 // SECTION 6: VOLUME LINES - COMPLETE REWRITE
