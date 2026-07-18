@@ -112,7 +112,7 @@ plotshape(showBuySellArrows and buySignal and validSignal, title="Institutional 
 plotshape(showBuySellArrows and sellSignal and validSignal, title="Institutional Sell", style=shape.triangledown, location=location.abovebar, color=color.new(color.red, 0), size=size.large, text="SELL")
 
 // ============================================================================
-// SECTION 5B: RISK/REWARD ZONES - MORE VISIBLE
+// SECTION 5B: RISK/REWARD ZONES - MORE VISIBLE (WITHOUT TP3 BOXES)
 // ============================================================================
 if showColorGradedZones and (buySignal or sellSignal) and validSignal
     float entryPrice = close
@@ -210,12 +210,11 @@ if showVolumeLines and isVolumeSurge and validSignal and (buySignal or sellSigna
         array.push(volumeLineTouches, 0)
 
 // ============================================================================
-// SECTION 7: TACTICAL TABLE
+// SECTION 7: TACTICAL TABLE - ALWAYS SHOW DATA
 // ============================================================================
 var table tacticalTable = table.new(position.top_right, 7, 9, border_width=2, border_color=color.new(color.gray, 50), frame_color=color.new(color.black, 100), frame_width=1)
 
 if barstate.islast
-    bool signalActive = (sellSignal or buySignal) and validSignal
     float entryPrice = close
     
     table.cell(tacticalTable, 0, 0, "PROFILE", bgcolor=color.gray, text_color=color.white, text_size=size.small, text_halign=text.align_center)
@@ -226,11 +225,11 @@ if barstate.islast
     table.cell(tacticalTable, 5, 0, "TP3", bgcolor=color.gray, text_color=color.white, text_size=size.small, text_halign=text.align_center)
     table.cell(tacticalTable, 6, 0, "R:R", bgcolor=color.gray, text_color=color.white, text_size=size.small, text_halign=text.align_center)
     
-    // SCALP ROW
-    float scalpSLPrice = signalActive ? (sellSignal ? high + scalpSL : low - scalpSL) : 0.0
-    float scalpTP1Price = signalActive ? (sellSignal ? close - scalpTP1 : close + scalpTP1) : 0.0
-    float scalpTP2Price = signalActive ? (sellSignal ? close - scalpTP2 : close + scalpTP2) : 0.0
-    float scalpTP3Price = signalActive ? (sellSignal ? close - scalpTP3 : close + scalpTP3) : 0.0
+    // SCALP ROW - ALWAYS SHOW DATA
+    float scalpSLPrice = sellSignal ? (high + scalpSL) : (low - scalpSL)
+    float scalpTP1Price = sellSignal ? (close - scalpTP1) : (close + scalpTP1)
+    float scalpTP2Price = sellSignal ? (close - scalpTP2) : (close + scalpTP2)
+    float scalpTP3Price = sellSignal ? (close - scalpTP3) : (close + scalpTP3)
     float scalpRiskDist = math.abs(entryPrice - scalpSLPrice)
     float scalpRR = scalpRiskDist > 0 ? math.abs(scalpTP2Price - entryPrice) / scalpRiskDist : 0.0
     
@@ -242,11 +241,11 @@ if barstate.islast
     table.cell(tacticalTable, 5, 1, str.tostring(scalpTP3Price, "#.##"), bgcolor=color.new(color.green, 85), text_color=color.white, text_size=size.small)
     table.cell(tacticalTable, 6, 1, str.tostring(scalpRR, "#.##") + ":1", bgcolor=scalpRR >= minRRFilter ? color.new(color.blue, 40) : color.new(color.orange, 40), text_color=color.white, text_size=size.small)
     
-    // SWING ROW
-    float swingSLPrice = signalActive ? (sellSignal ? high + swingSL : low - swingSL) : 0.0
-    float swingTP1Price = signalActive ? (sellSignal ? close - swingTP1 : close + swingTP1) : 0.0
-    float swingTP2Price = signalActive ? (sellSignal ? close - swingTP2 : close + swingTP2) : 0.0
-    float swingTP3Price = signalActive ? (sellSignal ? close - swingTP3 : close + swingTP3) : 0.0
+    // SWING ROW - ALWAYS SHOW DATA
+    float swingSLPrice = sellSignal ? (high + swingSL) : (low - swingSL)
+    float swingTP1Price = sellSignal ? (close - swingTP1) : (close + swingTP1)
+    float swingTP2Price = sellSignal ? (close - swingTP2) : (close + swingTP2)
+    float swingTP3Price = sellSignal ? (close - swingTP3) : (close + swingTP3)
     float swingRiskDist = math.abs(entryPrice - swingSLPrice)
     float swingRR = swingRiskDist > 0 ? math.abs(swingTP2Price - entryPrice) / swingRiskDist : 0.0
     
@@ -258,11 +257,11 @@ if barstate.islast
     table.cell(tacticalTable, 5, 2, str.tostring(swingTP3Price, "#.##"), bgcolor=color.new(color.green, 70), text_color=color.white, text_size=size.small)
     table.cell(tacticalTable, 6, 2, str.tostring(swingRR, "#.##") + ":1", bgcolor=swingRR >= minRRFilter ? color.new(color.blue, 30) : color.new(color.orange, 30), text_color=color.white, text_size=size.small)
     
-    // POSITION ROW
-    float positionSLPrice = signalActive ? (sellSignal ? high + positionSL : low - positionSL) : 0.0
-    float positionTP1Price = signalActive ? (sellSignal ? close - positionTP1 : close + positionTP1) : 0.0
-    float positionTP2Price = signalActive ? (sellSignal ? close - positionTP2 : close + positionTP2) : 0.0
-    float positionTP3Price = signalActive ? (sellSignal ? close - positionTP3 : close + positionTP3) : 0.0
+    // POSITION ROW - ALWAYS SHOW DATA
+    float positionSLPrice = sellSignal ? (high + positionSL) : (low - positionSL)
+    float positionTP1Price = sellSignal ? (close - positionTP1) : (close + positionTP1)
+    float positionTP2Price = sellSignal ? (close - positionTP2) : (close + positionTP2)
+    float positionTP3Price = sellSignal ? (close - positionTP3) : (close + positionTP3)
     float positionRiskDist = math.abs(entryPrice - positionSLPrice)
     float positionRR = positionRiskDist > 0 ? math.abs(positionTP2Price - entryPrice) / positionRiskDist : 0.0
     
