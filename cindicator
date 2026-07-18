@@ -1,5 +1,5 @@
 //@version=6
-indicator("BTC Sniper [Pro Elite Institutional V38 - Crypto Edition]", overlay=true, max_lines_count=500)
+indicator("BTC Sniper [Pro Elite Institutional V39 - Enhanced Edition]", overlay=true, max_lines_count=500)
 
 // ============================================================================
 // SECTION 1: INPUTS - OPTIMIZED FOR BTC/USDT
@@ -39,15 +39,20 @@ bool showColorGradedZones = input.bool(true, "Show Color-Graded Risk/Reward Zone
 bool showWinProbability = input.bool(true, "Show Win Probability %", group="Visualization")
 float minRRFilter = input.float(1.5, "Minimum R:R Ratio Filter", minval=0.5, maxval=5.0, step=0.1, group="Visualization")
 
+// NEW: Enhanced Signal Strength
+float obStrengthWeight = input.float(30.0, "OB Strength Weight", minval=10.0, maxval=50.0, group="Signal Enhancement")
+float trendAlignmentWeight = input.float(25.0, "Trend Alignment Weight", minval=10.0, maxval=50.0, group="Signal Enhancement")
+
 // ============================================================================
-// SECTION 2: CORE CALCULATIONS
+// SECTION 2: CORE CALCULATIONS - ENHANCED LOGIC
 // ============================================================================
 float avgVol = ta.sma(volume, 20)
 bool isVolumeSurge = volume > (avgVol * sensitivity)
 float volumeMultiplier = volume / avgVol
 
-bool isBullishOB = (close[1] < open[1] and close > open)
-bool isBearishOB = (close[1] > open[1] and close < open)
+// ENHANCED: Order Block Detection with proper retracement logic
+bool isBullishOB = (close[1] < open[1] and close > open and close > close[1])
+bool isBearishOB = (close[1] > open[1] and close < open and close < close[1])
 
 bool buySignal = isBullishOB and isVolumeSurge
 bool sellSignal = isBearishOB and isVolumeSurge
@@ -56,21 +61,54 @@ bool isNewsHour = useNewsFilter ? (hour == newsHour and minute >= newsMin and mi
 bool validSignal = not isNewsHour
 
 // ============================================================================
-// SECTION 2B: WIN PROBABILITY
+// SECTION 2B: ENHANCED WIN PROBABILITY - BIDIRECTIONAL ANALYSIS
 // ============================================================================
 float volumeStrength = math.min((volumeMultiplier - 1.0) * 40, 40.0)
-float obStrength = (isBearishOB or isBullishOB) ? 30.0 : 0.0
+float obStrength = (isBearishOB or isBullishOB) ? obStrengthWeight : 0.0
 
+// ENHANCED: Multi-timeframe trend analysis (5, 20, 50 MAs)
 float ma5 = ta.sma(close, 5)
-float trendAlignment = 0.0
-if buySignal and close > ma5
-    trendAlignment := 30.0
-else if sellSignal and close < ma5
-    trendAlignment := 30.0
-else if (buySignal or sellSignal)
-    trendAlignment := 15.0
+float ma20 = ta.sma(close, 20)
+float ma50 = ta.sma(close, 50)
 
-float winProbability = math.min(volumeStrength + obStrength + trendAlignment, 95.0)
+float trendAlignment = 0.0
+float downTrendStrength = 0.0
+float upTrendStrength = 0.0
+
+// BUY Signal with trend confirmation
+if buySignal
+    if close > ma5 and ma5 > ma20 and ma20 > ma50
+        trendAlignment := trendAlignmentWeight * 1.2  // Strong uptrend
+        upTrendStrength := 35.0
+    else if close > ma5 and ma5 > ma20
+        trendAlignment := trendAlignmentWeight * 0.8  // Weak uptrend
+        upTrendStrength := 20.0
+    else if close > ma5
+        trendAlignment := trendAlignmentWeight * 0.5  // Slight uptrend
+        upTrendStrength := 10.0
+    else
+        trendAlignment := trendAlignmentWeight * 0.3  // Counter trend
+        upTrendStrength := 5.0
+
+// SELL Signal with trend confirmation
+if sellSignal
+    if close < ma5 and ma5 < ma20 and ma20 < ma50
+        trendAlignment := trendAlignmentWeight * 1.2  // Strong downtrend
+        downTrendStrength := 35.0
+    else if close < ma5 and ma5 < ma20
+        trendAlignment := trendAlignmentWeight * 0.8  // Weak downtrend
+        downTrendStrength := 20.0
+    else if close < ma5
+        trendAlignment := trendAlignmentWeight * 0.5  // Slight downtrend
+        downTrendStrength := 10.0
+    else
+        trendAlignment := trendAlignmentWeight * 0.3  // Counter trend
+        downTrendStrength := 5.0
+
+// Calculate directional win probability
+float buyWinProbability = math.min(volumeStrength + obStrength + (buySignal ? trendAlignment : 0) + upTrendStrength, 95.0)
+float sellWinProbability = math.min(volumeStrength + obStrength + (sellSignal ? trendAlignment : 0) + downTrendStrength, 95.0)
+float winProbability = buySignal ? buyWinProbability : (sellSignal ? sellWinProbability : 0.0)
 
 // ============================================================================
 // SECTION 3: ATR CALCULATIONS
@@ -101,15 +139,18 @@ if (isVolumeSurge and validSignal)
     
     box.new(left=bar_index[1], top=high[1], right=bar_index + 10, bottom=low[1], bgcolor=boxColor, border_color=borderColor, border_width=2)
     
-    // Make label background opaque white and black text for readability
     label.new(bar_index + 5, (high[1] + low[1]) / 2, text=str.tostring(volume / avgVol, "#.#") + "x", color=color.new(color.white, 0), textcolor=color.black, size=size.small, style=label.style_label_center)
 
 // ============================================================================
-// SECTION 5: BUY/SELL ARROWS
+// SECTION 5: BUY/SELL ARROWS - ENHANCED WITH FLASHING EFFECT
 // ============================================================================
-plotshape(showBuySellArrows and buySignal and validSignal, title="Institutional Buy", style=shape.triangleup, location=location.belowbar, color=color.new(color.green, 0), size=size.large, text="BUY")
+// Flash effect counter for attention-grabbing
+int flashCounter = bar_index % 2
 
-plotshape(showBuySellArrows and sellSignal and validSignal, title="Institutional Sell", style=shape.triangledown, location=location.abovebar, color=color.new(color.red, 0), size=size.large, text="SELL")
+// ENHANCED: Show arrows only on confirmed signals
+plotshape(showBuySellArrows and buySignal and validSignal, title="Institutional Buy", style=shape.triangleup, location=location.belowbar, color=color.new(color.lime, flashCounter == 0 ? 0 : 30), size=size.large, text="BUY")
+
+plotshape(showBuySellArrows and sellSignal and validSignal, title="Institutional Sell", style=shape.triangledown, location=location.abovebar, color=color.new(color.red, flashCounter == 0 ? 0 : 30), size=size.large, text="SELL")
 
 // ============================================================================
 // SECTION 5B: RISK/REWARD ZONES - MORE VISIBLE (WITHOUT TP3 BOXES)
@@ -125,8 +166,8 @@ if showColorGradedZones and (buySignal or sellSignal) and validSignal
     float scalpRR = scalpRiskPips > 0 ? scalpRewardPips / scalpRiskPips : 0.0
     
     if scalpRR >= minRRFilter
-        box.new(left=bar_index, top=sellSignal ? entryPrice : scalpSLPrice, right=bar_index + 12, bottom=sellSignal ? scalpSLPrice : entryPrice, bgcolor=color.new(color.red, 75), border_color=color.new(color.maroon, 0), border_width=2)
-        box.new(left=bar_index, top=sellSignal ? scalpTP2Price : entryPrice, right=bar_index + 12, bottom=sellSignal ? entryPrice : scalpTP2Price, bgcolor=color.new(color.green, 75), border_color=color.new(color.olive, 0), border_width=2)
+        box.new(left=bar_index, top=sellSignal ? entryPrice : scalpSLPrice, right=bar_index + 12, bottom=sellSignal ? scalpSLPrice : entryPrice, bgcolor=color.new(color.red, 75), border_color=color.new(color.red, 0), border_width=1)
+        box.new(left=bar_index, top=sellSignal ? scalpTP2Price : entryPrice, right=bar_index + 12, bottom=sellSignal ? entryPrice : scalpTP2Price, bgcolor=color.new(color.green, 75), border_color=color.new(color.green, 0), border_width=1)
     
     // SWING Profile Zones
     float swingSLPrice = sellSignal ? (high + swingSL) : (low - swingSL)
@@ -136,8 +177,8 @@ if showColorGradedZones and (buySignal or sellSignal) and validSignal
     float swingRR = swingRiskPips > 0 ? swingRewardPips / swingRiskPips : 0.0
     
     if swingRR >= minRRFilter
-        box.new(left=bar_index, top=sellSignal ? entryPrice : swingSLPrice, right=bar_index + 18, bottom=sellSignal ? swingSLPrice : entryPrice, bgcolor=color.new(color.red, 70), border_color=color.new(color.maroon, 0), border_width=2)
-        box.new(left=bar_index, top=sellSignal ? swingTP2Price : entryPrice, right=bar_index + 18, bottom=sellSignal ? entryPrice : swingTP2Price, bgcolor=color.new(color.green, 70), border_color=color.new(color.olive, 0), border_width=2)
+        box.new(left=bar_index, top=sellSignal ? entryPrice : swingSLPrice, right=bar_index + 18, bottom=sellSignal ? swingSLPrice : entryPrice, bgcolor=color.new(color.red, 70), border_color=color.new(color.red, 0), border_width=1)
+        box.new(left=bar_index, top=sellSignal ? swingTP2Price : entryPrice, right=bar_index + 18, bottom=sellSignal ? entryPrice : swingTP2Price, bgcolor=color.new(color.green, 70), border_color=color.new(color.green, 0), border_width=1)
     
     // POSITION Profile Zones
     float positionSLPrice = sellSignal ? (high + positionSL) : (low - positionSL)
@@ -147,15 +188,14 @@ if showColorGradedZones and (buySignal or sellSignal) and validSignal
     float positionRR = positionRiskPips > 0 ? positionRewardPips / positionRiskPips : 0.0
     
     if positionRR >= minRRFilter
-        box.new(left=bar_index, top=sellSignal ? entryPrice : positionSLPrice, right=bar_index + 25, bottom=sellSignal ? positionSLPrice : entryPrice, bgcolor=color.new(color.red, 65), border_color=color.new(color.maroon, 0), border_width=2)
-        box.new(left=bar_index, top=sellSignal ? positionTP2Price : entryPrice, right=bar_index + 25, bottom=sellSignal ? entryPrice : positionTP2Price, bgcolor=color.new(color.green, 65), border_color=color.new(color.olive, 0), border_width=2)
+        box.new(left=bar_index, top=sellSignal ? entryPrice : positionSLPrice, right=bar_index + 25, bottom=sellSignal ? positionSLPrice : entryPrice, bgcolor=color.new(color.red, 65), border_color=color.new(color.red, 0), border_width=1)
+        box.new(left=bar_index, top=sellSignal ? positionTP2Price : entryPrice, right=bar_index + 25, bottom=sellSignal ? entryPrice : positionTP2Price, bgcolor=color.new(color.green, 65), border_color=color.new(color.green, 0), border_width=1)
     
     // Entry zone (Yellow anchor line)
     box.new(left=bar_index - 1, top=entryPrice + 50, right=bar_index + 25, bottom=entryPrice - 50, bgcolor=color.new(color.yellow, 60), border_color=color.new(color.orange, 20), border_width=2)
     
     if showWinProbability
-        // Use opaque white background for win-prob label and dark text for readability
-        label.new(bar_index + 12, entryPrice + (sellSignal ? -100 : 100), text="📊 Win: " + str.tostring(winProbability, "#.#") + "%", color=color.new(color.white, 0), textcolor=color.black, size=size.small, style=label.style_label_center)
+        label.new(bar_index + 12, entryPrice + (sellSignal ? -100 : 100), text="📊 Win: " + str.tostring(winProbability, "#.#") + "%", color=color.new(color.white, 0), textcolor=color.black, size=size.small)
 
 // ============================================================================
 // SECTION 6: VOLUME LINES - COMPLETE REWRITE
@@ -210,20 +250,21 @@ if showVolumeLines and isVolumeSurge and validSignal and (buySignal or sellSigna
         array.push(volumeLineTouches, 0)
 
 // ============================================================================
-// SECTION 7: TACTICAL TABLE - ALWAYS SHOW DATA
+// SECTION 7: TACTICAL TABLE - ENHANCED FOR READABILITY & ACCURACY
 // ============================================================================
-var table tacticalTable = table.new(position.top_right, 7, 9, border_width=2, border_color=color.new(color.gray, 50), frame_color=color.new(color.black, 100), frame_width=1)
+var table tacticalTable = table.new(position.top_right, 7, 9, border_width=2, border_color=color.new(color.gray, 0), frame_color=color.new(color.black, 0), frame_width=1)
 
 if barstate.islast
     float entryPrice = close
     
-    table.cell(tacticalTable, 0, 0, "PROFILE", bgcolor=color.gray, text_color=color.white, text_size=size.small, text_halign=text.align_center)
-    table.cell(tacticalTable, 1, 0, "ENTRY", bgcolor=color.gray, text_color=color.white, text_size=size.small, text_halign=text.align_center)
-    table.cell(tacticalTable, 2, 0, "SL", bgcolor=color.gray, text_color=color.white, text_size=size.small, text_halign=text.align_center)
-    table.cell(tacticalTable, 3, 0, "TP1", bgcolor=color.gray, text_color=color.white, text_size=size.small, text_halign=text.align_center)
-    table.cell(tacticalTable, 4, 0, "TP2", bgcolor=color.gray, text_color=color.white, text_size=size.small, text_halign=text.align_center)
-    table.cell(tacticalTable, 5, 0, "TP3", bgcolor=color.gray, text_color=color.white, text_size=size.small, text_halign=text.align_center)
-    table.cell(tacticalTable, 6, 0, "R:R", bgcolor=color.gray, text_color=color.white, text_size=size.small, text_halign=text.align_center)
+    // DARKER BACKGROUNDS FOR BETTER READABILITY
+    table.cell(tacticalTable, 0, 0, "PROFILE", bgcolor=color.new(color.gray, 20), text_color=color.white, text_size=size.small, text_halign=text.align_center)
+    table.cell(tacticalTable, 1, 0, "ENTRY", bgcolor=color.new(color.gray, 20), text_color=color.white, text_size=size.small, text_halign=text.align_center)
+    table.cell(tacticalTable, 2, 0, "SL", bgcolor=color.new(color.gray, 20), text_color=color.white, text_size=size.small, text_halign=text.align_center)
+    table.cell(tacticalTable, 3, 0, "TP1", bgcolor=color.new(color.gray, 20), text_color=color.white, text_size=size.small, text_halign=text.align_center)
+    table.cell(tacticalTable, 4, 0, "TP2", bgcolor=color.new(color.gray, 20), text_color=color.white, text_size=size.small, text_halign=text.align_center)
+    table.cell(tacticalTable, 5, 0, "TP3", bgcolor=color.new(color.gray, 20), text_color=color.white, text_size=size.small, text_halign=text.align_center)
+    table.cell(tacticalTable, 6, 0, "R:R", bgcolor=color.new(color.gray, 20), text_color=color.white, text_size=size.small, text_halign=text.align_center)
     
     // SCALP ROW - ALWAYS SHOW DATA
     float scalpSLPrice = sellSignal ? (high + scalpSL) : (low - scalpSL)
@@ -233,12 +274,12 @@ if barstate.islast
     float scalpRiskDist = math.abs(entryPrice - scalpSLPrice)
     float scalpRR = scalpRiskDist > 0 ? math.abs(scalpTP2Price - entryPrice) / scalpRiskDist : 0.0
     
-    table.cell(tacticalTable, 0, 1, "🏃 SCALP", bgcolor=color.new(color.yellow, 80), text_color=color.black, text_size=size.small, text_halign=text.align_center)
-    table.cell(tacticalTable, 1, 1, str.tostring(entryPrice, "#.##"), bgcolor=color.new(color.yellow, 60), text_color=color.black, text_size=size.small)
-    table.cell(tacticalTable, 2, 1, str.tostring(scalpSLPrice, "#.##"), bgcolor=color.new(color.red, 85), text_color=color.white, text_size=size.small)
-    table.cell(tacticalTable, 3, 1, str.tostring(scalpTP1Price, "#.##"), bgcolor=color.new(color.green, 85), text_color=color.white, text_size=size.small)
-    table.cell(tacticalTable, 4, 1, str.tostring(scalpTP2Price, "#.##"), bgcolor=color.new(color.green, 85), text_color=color.white, text_size=size.small)
-    table.cell(tacticalTable, 5, 1, str.tostring(scalpTP3Price, "#.##"), bgcolor=color.new(color.green, 85), text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 0, 1, "🏃 SCALP", bgcolor=color.new(color.yellow, 50), text_color=color.black, text_size=size.small, text_halign=text.align_center)
+    table.cell(tacticalTable, 1, 1, str.tostring(entryPrice, "#.##"), bgcolor=color.new(color.yellow, 40), text_color=color.black, text_size=size.small)
+    table.cell(tacticalTable, 2, 1, str.tostring(scalpSLPrice, "#.##"), bgcolor=color.new(color.red, 50), text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 3, 1, str.tostring(scalpTP1Price, "#.##"), bgcolor=color.new(color.green, 50), text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 4, 1, str.tostring(scalpTP2Price, "#.##"), bgcolor=color.new(color.green, 50), text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 5, 1, str.tostring(scalpTP3Price, "#.##"), bgcolor=color.new(color.green, 50), text_color=color.white, text_size=size.small)
     table.cell(tacticalTable, 6, 1, str.tostring(scalpRR, "#.##") + ":1", bgcolor=scalpRR >= minRRFilter ? color.new(color.blue, 40) : color.new(color.orange, 40), text_color=color.white, text_size=size.small)
     
     // SWING ROW - ALWAYS SHOW DATA
@@ -249,13 +290,13 @@ if barstate.islast
     float swingRiskDist = math.abs(entryPrice - swingSLPrice)
     float swingRR = swingRiskDist > 0 ? math.abs(swingTP2Price - entryPrice) / swingRiskDist : 0.0
     
-    table.cell(tacticalTable, 0, 2, "📊 SWING", bgcolor=color.new(color.blue, 80), text_color=color.white, text_size=size.small, text_halign=text.align_center)
-    table.cell(tacticalTable, 1, 2, str.tostring(entryPrice, "#.##"), bgcolor=color.new(color.blue, 60), text_color=color.white, text_size=size.small)
-    table.cell(tacticalTable, 2, 2, str.tostring(swingSLPrice, "#.##"), bgcolor=color.new(color.red, 70), text_color=color.white, text_size=size.small)
-    table.cell(tacticalTable, 3, 2, str.tostring(swingTP1Price, "#.##"), bgcolor=color.new(color.green, 70), text_color=color.white, text_size=size.small)
-    table.cell(tacticalTable, 4, 2, str.tostring(swingTP2Price, "#.##"), bgcolor=color.new(color.green, 70), text_color=color.white, text_size=size.small)
-    table.cell(tacticalTable, 5, 2, str.tostring(swingTP3Price, "#.##"), bgcolor=color.new(color.green, 70), text_color=color.white, text_size=size.small)
-    table.cell(tacticalTable, 6, 2, str.tostring(swingRR, "#.##") + ":1", bgcolor=swingRR >= minRRFilter ? color.new(color.blue, 30) : color.new(color.orange, 30), text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 0, 2, "📊 SWING", bgcolor=color.new(color.blue, 50), text_color=color.white, text_size=size.small, text_halign=text.align_center)
+    table.cell(tacticalTable, 1, 2, str.tostring(entryPrice, "#.##"), bgcolor=color.new(color.blue, 40), text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 2, 2, str.tostring(swingSLPrice, "#.##"), bgcolor=color.new(color.red, 50), text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 3, 2, str.tostring(swingTP1Price, "#.##"), bgcolor=color.new(color.green, 50), text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 4, 2, str.tostring(swingTP2Price, "#.##"), bgcolor=color.new(color.green, 50), text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 5, 2, str.tostring(swingTP3Price, "#.##"), bgcolor=color.new(color.green, 50), text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 6, 2, str.tostring(swingRR, "#.##") + ":1", bgcolor=swingRR >= minRRFilter ? color.new(color.blue, 40) : color.new(color.orange, 40), text_color=color.white, text_size=size.small)
     
     // POSITION ROW - ALWAYS SHOW DATA
     float positionSLPrice = sellSignal ? (high + positionSL) : (low - positionSL)
@@ -265,19 +306,19 @@ if barstate.islast
     float positionRiskDist = math.abs(entryPrice - positionSLPrice)
     float positionRR = positionRiskDist > 0 ? math.abs(positionTP2Price - entryPrice) / positionRiskDist : 0.0
     
-    table.cell(tacticalTable, 0, 3, "🏛️ POSITION", bgcolor=color.new(color.purple, 80), text_color=color.white, text_size=size.small, text_halign=text.align_center)
-    table.cell(tacticalTable, 1, 3, str.tostring(entryPrice, "#.##"), bgcolor=color.new(color.purple, 60), text_color=color.white, text_size=size.small)
-    table.cell(tacticalTable, 2, 3, str.tostring(positionSLPrice, "#.##"), bgcolor=color.new(color.red, 55), text_color=color.white, text_size=size.small)
-    table.cell(tacticalTable, 3, 3, str.tostring(positionTP1Price, "#.##"), bgcolor=color.new(color.green, 55), text_color=color.white, text_size=size.small)
-    table.cell(tacticalTable, 4, 3, str.tostring(positionTP2Price, "#.##"), bgcolor=color.new(color.green, 55), text_color=color.white, text_size=size.small)
-    table.cell(tacticalTable, 5, 3, str.tostring(positionTP3Price, "#.##"), bgcolor=color.new(color.green, 55), text_color=color.white, text_size=size.small)
-    table.cell(tacticalTable, 6, 3, str.tostring(positionRR, "#.##") + ":1", bgcolor=positionRR >= minRRFilter ? color.new(color.purple, 30) : color.new(color.orange, 30), text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 0, 3, "🏛️ POSITION", bgcolor=color.new(color.purple, 50), text_color=color.white, text_size=size.small, text_halign=text.align_center)
+    table.cell(tacticalTable, 1, 3, str.tostring(entryPrice, "#.##"), bgcolor=color.new(color.purple, 40), text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 2, 3, str.tostring(positionSLPrice, "#.##"), bgcolor=color.new(color.red, 50), text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 3, 3, str.tostring(positionTP1Price, "#.##"), bgcolor=color.new(color.green, 50), text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 4, 3, str.tostring(positionTP2Price, "#.##"), bgcolor=color.new(color.green, 50), text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 5, 3, str.tostring(positionTP3Price, "#.##"), bgcolor=color.new(color.green, 50), text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 6, 3, str.tostring(positionRR, "#.##") + ":1", bgcolor=positionRR >= minRRFilter ? color.new(color.purple, 40) : color.new(color.orange, 40), text_color=color.white, text_size=size.small)
     
-    // STATUS ROW
-    string signalStatus = sellSignal ? "🔴 SELL" : buySignal ? "🟢 BUY" : "⏳ WAIT"
-    color statusColor = sellSignal ? color.new(color.red, 40) : buySignal ? color.new(color.green, 40) : color.new(color.gray, 40)
+    // STATUS ROW - WITH FLASHING EFFECT
+    string signalStatus = sellSignal ? (flashCounter == 0 ? "🔴 SELL!" : "🔴 SELL") : buySignal ? (flashCounter == 0 ? "🟢 BUY!" : "🟢 BUY") : "⏳ WAIT"
+    color statusColor = sellSignal ? color.new(color.red, flashCounter == 0 ? 20 : 60) : buySignal ? color.new(color.green, flashCounter == 0 ? 20 : 60) : color.new(color.gray, 40)
     
-    table.cell(tacticalTable, 0, 4, "STATUS", bgcolor=color.gray, text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 0, 4, "STATUS", bgcolor=color.new(color.gray, 20), text_color=color.white, text_size=size.small)
     table.cell(tacticalTable, 1, 4, signalStatus, bgcolor=statusColor, text_color=color.white, text_size=size.small)
     table.cell(tacticalTable, 2, 4, isNewsHour ? "📰 NEWS" : "✓ READY", bgcolor=isNewsHour ? color.new(color.orange, 40) : color.new(color.green, 40), text_color=color.white, text_size=size.small)
     table.cell(tacticalTable, 3, 4, str.tostring(volumeMultiplier, "#.#") + "x", bgcolor=color.new(color.blue, 40), text_color=color.white, text_size=size.small)
@@ -286,16 +327,16 @@ if barstate.islast
     table.cell(tacticalTable, 6, 4, "LINES: " + str.tostring(array.size(volumeLines)), bgcolor=array.size(volumeLines) > 20 ? color.new(color.orange, 30) : color.new(color.gray, 30), text_size=size.small)
     
     // ATR & PROBABILITY
-    table.cell(tacticalTable, 0, 5, "ATR", bgcolor=color.gray, text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 0, 5, "ATR", bgcolor=color.new(color.gray, 20), text_color=color.white, text_size=size.small)
     table.cell(tacticalTable, 1, 5, str.tostring(atrValue, "#.##"), bgcolor=color.new(color.orange, 40), text_color=color.white, text_size=size.small)
-    table.cell(tacticalTable, 2, 5, "WIN %", bgcolor=color.gray, text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 2, 5, "WIN %", bgcolor=color.new(color.gray, 20), text_color=color.white, text_size=size.small)
     table.cell(tacticalTable, 3, 5, str.tostring(winProbability, "#.#") + "%", bgcolor=winProbability >= 60 ? color.new(color.green, 40) : (winProbability >= 45 ? color.new(color.blue, 40) : color.new(color.orange, 40)), text_color=color.white, text_size=size.small)
-    table.cell(tacticalTable, 4, 5, "VOL STR", bgcolor=color.gray, text_color=color.white, text_size=size.small)
+    table.cell(tacticalTable, 4, 5, "VOL STR", bgcolor=color.new(color.gray, 20), text_color=color.white, text_size=size.small)
     table.cell(tacticalTable, 5, 5, str.tostring(volumeStrength, "#.#") + "%", bgcolor=color.new(color.blue, 30), text_color=color.white, text_size=size.small)
     table.cell(tacticalTable, 6, 5, (buySignal or sellSignal) ? "✓ SIGNAL" : "○ NONE", bgcolor=(buySignal or sellSignal) ? color.new(color.green, 40) : color.new(color.gray, 40), text_color=color.white, text_size=size.small)
 
 // ============================================================================
 // FOOTER
 // ============================================================================
-int system_version = 38
-string system_status = "BTC/USDT V38 - Crypto Edition: All features functional"
+int system_version = 39
+string system_status = "BTC/USDT V39 - Enhanced: Better Signals, Clearer Displays, Bidirectional Analysis"
